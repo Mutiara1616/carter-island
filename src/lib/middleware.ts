@@ -4,6 +4,8 @@ import jwt from 'jsonwebtoken'
 import { cache } from './cache'
 import type { TokenPayload } from '@/types/auth'
 
+const JWT_SECRET = process.env.JWT_SECRET || 'carter-island-fallback-secret'
+
 export type AuthUser = {
   id: string
   email: string
@@ -31,7 +33,6 @@ export function withAuth(
         return res.status(401).json({ message: 'No token provided' })
       }
 
-      const JWT_SECRET = process.env.JWT_SECRET || 'fallback'
       let decoded: TokenPayload
       try {
         decoded = jwt.verify(token, JWT_SECRET) as TokenPayload

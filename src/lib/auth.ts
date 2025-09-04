@@ -4,6 +4,8 @@ import jwt from 'jsonwebtoken'
 import { prisma } from './prisma'
 import { CreateUserData, TokenPayload, User, Role } from '@/types/auth'
 
+const JWT_SECRET = process.env.JWT_SECRET || 'carter-island-fallback-secret'
+
 export async function hashPassword(password: string): Promise<string> {
   return await bcrypt.hash(password, 12)
 }
@@ -13,14 +15,14 @@ export async function verifyPassword(password: string, hashedPassword: string): 
 }
 
 export function generateToken(payload: TokenPayload): string {
-  return jwt.sign(payload, process.env.JWT_SECRET || 'fallback-secret', {
+  return jwt.sign(payload, JWT_SECRET, {
     expiresIn: '24h'
   })
 }
 
 export function verifyToken(token: string): TokenPayload | null {
   try {
-    return jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as TokenPayload
+    return jwt.verify(token, JWT_SECRET) as TokenPayload
   } catch (error) {
     return null
   }

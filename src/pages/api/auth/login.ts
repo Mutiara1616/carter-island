@@ -1,11 +1,10 @@
-// src/pages/api/auth/login.ts - Alternative Version
+// src/pages/api/auth/login.ts
 import { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { cache } from '@/lib/cache'
 import { verifyPassword, generateToken } from '@/lib/auth'
-import { AuthResponse, LoginCredentials } from '@/types/auth'
+import { AuthResponse, LoginCredentials, Role } from '@/types/auth'
 
-// ✅ Helper function for async activity logging
 async function logUserActivity(
   userId: string, 
   action: string, 
@@ -24,7 +23,6 @@ async function logUserActivity(
       }
     })
   } catch (error) {
-    // Don't let logging errors break the login flow
     console.error('Activity log error:', error)
   }
 }
@@ -48,6 +46,16 @@ export default async function handler(
         success: false, 
         message: 'Email dan password harus diisi' 
       })
+    }
+
+    // Clear any cached user data for this email first
+    const potentialUsers = await prisma.user.findMany({
+      where: { email },
+      select: { id: true }
+    })
+    
+    for (const potentialUser of potentialUsers) {
+      await cache.del(`user:${potentialUser.id}`)
     }
 
     const user = await prisma.user.findUnique({
@@ -85,27 +93,31 @@ export default async function handler(
       })
     }
 
-    const token = generateToken({
+    const tokenPayload = {
       userId: user.id,
       email: user.email,
-      role: user.role
-    })
+      role: user.role as Role
+    }
+
+    const token = generateToken(tokenPayload)
 
     const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || 
                       req.socket.remoteAddress || 
                       null
     const userAgent = req.headers['user-agent'] || null
 
-    // ✅ Critical operations in transaction (faster)
+    // Delete any existing sessions for this user first
+    await prisma.session.deleteMany({
+      where: { userId: user.id }
+    })
+
     await prisma.$transaction(async (tx: { user: { update: (arg0: { where: { id: any }; data: { lastLoginAt: Date }; select: { id: boolean } }) => any }; session: { create: (arg0: { data: { userId: any; token: string; expiresAt: Date; ipAddress: string | null; userAgent: string | null }; select: { id: boolean } }) => any } }) => {
-      // Update last login
       await tx.user.update({
         where: { id: user.id },
         data: { lastLoginAt: new Date() },
         select: { id: true }
       })
 
-      // Create session
       await tx.session.create({
         data: {
           userId: user.id,
@@ -119,15 +131,14 @@ export default async function handler(
     })
 
     const { password: _, ...userResponse } = user
-    await cache.set(`user:${user.id}`, userResponse, 900)
 
     logUserActivity(
       user.id, 
       'LOGIN', 
-      'User logged in successfully', 
+      `User logged in successfully - Role: ${user.role}`, 
       ipAddress, 
       userAgent
-    ).catch(console.error) 
+    ).catch(console.error)
 
     res.status(200).json({
       success: true,

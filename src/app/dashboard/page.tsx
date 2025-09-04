@@ -24,12 +24,16 @@ import {
 interface DashboardUser {
   id: string
   email: string
-  username?: string
-  firstName?: string
-  lastName?: string
-  role: 'USER' | 'ADMIN'
-  department?: string
-  position?: string
+  username?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  role: string
+  department?: string | null
+  position?: string | null
+  status?: string
+  createdAt?: Date
+  updatedAt?: Date
+  lastLoginAt?: Date | null
 }
 
 export default function DashboardPage() {
@@ -88,11 +92,11 @@ export default function DashboardPage() {
 
   if (!user) return null
 
-  const isAdmin = user.role === 'ADMIN'
+  const isAdmin = user.role === 'ADMIN' || user.role === 'admin'
 
   const sidebarItems = [
     {
-      id: 'streaming',
+      id: 'streaming' as const,
       label: 'Fish Streaming',
       icon: Fish,
       description: 'Live underwater monitoring'
@@ -262,98 +266,53 @@ function StreamingContent() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main stream viewer */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardContent className="p-0">
-              <div className="aspect-video bg-slate-900 rounded-lg relative overflow-hidden">
-                {isStreaming ? (
-                  <div className="absolute inset-0 bg-gradient-to-b from-blue-900/20 to-blue-900/40 flex items-center justify-center">
-                    <div className="text-center text-white">
-                      <div className="animate-pulse flex items-center justify-center mb-4">
-                        <div className="w-4 h-4 bg-red-500 rounded-full mr-2"></div>
-                        <span className="text-sm font-medium">LIVE</span>
-                      </div>
-                      <p className="text-lg font-semibold mb-2">Underwater Stream Active</p>
-                      <p className="text-sm opacity-80">Monitoring fish population and behavior</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center text-slate-400">
-                    <div className="text-center">
-                      <Camera className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-lg font-medium">Stream Offline</p>
-                      <p className="text-sm">Click &quot;Start Stream&quot; to begin monitoring</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Stream stats and controls */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Stream Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">Status</span>
-                <Badge variant={isStreaming ? "default" : "secondary"}>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Stream Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${isStreaming ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                <span className="text-sm font-medium">
                   {isStreaming ? 'Live' : 'Offline'}
-                </Badge>
+                </span>
               </div>
-              {isStreaming && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600">Viewers</span>
-                    <span className="text-sm font-medium">{streamStats.viewers}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600">Duration</span>
-                    <span className="text-sm font-medium">{streamStats.duration}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600">Quality</span>
-                    <span className="text-sm font-medium">{streamStats.quality}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600">FPS</span>
-                    <span className="text-sm font-medium">{streamStats.fps}</span>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+              <div className="text-sm text-slate-600">
+                Viewers: {streamStats.viewers}
+              </div>
+              <div className="text-sm text-slate-600">
+                Duration: {streamStats.duration}
+              </div>
+              <div className="text-sm text-slate-600">
+                Quality: {streamStats.quality}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center gap-2 text-slate-600">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span>AUV depth: 15.2m</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-600">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span>Water temp: 24.5°C</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-600">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                  <span>Fish detected: 47</span>
-                </div>
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle>Live Feed</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="aspect-video bg-slate-800 rounded-lg flex items-center justify-center">
+              <div className="text-center text-white">
+                <Camera className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">
+                  {isStreaming ? 'Live Stream Active' : 'Stream Offline'}
+                </p>
+                <p className="text-sm opacity-75">
+                  Carter Island Underwater Camera
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

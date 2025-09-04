@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { cache } from '@/lib/cache'
 import type { TokenPayload } from '@/types/auth'
 
+const JWT_SECRET = process.env.JWT_SECRET || 'carter-island-fallback-secret'
+
 type MeUser = {
   id: string
   email: string
@@ -39,7 +41,6 @@ export default async function handler(
       return res.status(401).json({ message: 'No token provided' })
     }
 
-    const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
     const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload
 
     const cacheKey = `user:${decoded.userId}`
@@ -85,7 +86,6 @@ export default async function handler(
   } catch (error: unknown) {
     console.error('Me endpoint error:', error)
 
-    // Ketik aman untuk error JWT
     if (error instanceof jwt.JsonWebTokenError) {
       return res.status(401).json({ message: 'Invalid token' })
     }
