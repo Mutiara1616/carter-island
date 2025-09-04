@@ -15,7 +15,7 @@ async function createTestUser() {
         password: hashedPassword,
         firstName: 'Test',
         lastName: 'User',
-        role: 'USER', // Ini yang penting - role USER
+        role: 'USER',
         status: 'ACTIVE',
         department: 'Marine Biology',
         position: 'Field Researcher'

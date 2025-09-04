@@ -210,7 +210,7 @@ export default function LoginPage() {
               className="object-cover"
             /> */}
             <img
-              src="https://images.unsplash.com/photo-1564665259197-7fcf80a32907?q=80&w=1600&auto=format&fit=crop"
+              src="https://plus.unsplash.com/premium_photo-1675620963970-41055a7d6cfc?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8c2VhfGVufDB8fDB8fHww"
               alt="AUV fish farm"
               className="h-full w-full object-cover"
             />

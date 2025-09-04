@@ -1,12 +1,33 @@
 // src/pages/api/auth/me.ts
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import jwt from 'jsonwebtoken'
 import { prisma } from '@/lib/prisma'
-import { TokenPayload } from '@/types/auth'
+import { cache } from '@/lib/cache'
+import type { TokenPayload } from '@/types/auth'
+
+type MeUser = {
+  id: string
+  email: string
+  username: string | null
+  firstName: string | null
+  lastName: string | null
+  role: string
+  status: 'ACTIVE' | 'INACTIVE' | string
+  department: string | null
+  position: string | null
+  phone: string | null
+  createdAt: Date
+  updatedAt: Date
+  lastLoginAt: Date | null
+}
+
+type MeResponse =
+  | { success: true; user: MeUser }
+  | { success: false; message: string }
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse<MeResponse | { message: string }>
 ) {
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method not allowed' })
@@ -14,7 +35,6 @@ export default async function handler(
 
   try {
     const token = req.headers.authorization?.replace('Bearer ', '')
-    
     if (!token) {
       return res.status(401).json({ message: 'No token provided' })
     }
@@ -22,40 +42,54 @@ export default async function handler(
     const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
     const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        status: true,
-        department: true,
-        position: true,
-        phone: true,
-        createdAt: true,
-        updatedAt: true,
-        lastLoginAt: true
-      }
-    })
+    const cacheKey = `user:${decoded.userId}`
+    let user = await cache.get<MeUser>(cacheKey)
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' })
+      user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          status: true,
+          department: true,
+          position: true,
+          phone: true,
+          createdAt: true,
+          updatedAt: true,
+          lastLoginAt: true
+        }
+      })
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' })
+      }
+
+      await cache.set(cacheKey, user, 900)
     }
 
     if (user.status !== 'ACTIVE') {
       return res.status(401).json({ message: 'Account not active' })
     }
 
-    res.status(200).json({
+    res.setHeader('Cache-Control', 'private, max-age=300')
+
+    return res.status(200).json({
       success: true,
       user
     })
-
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Me endpoint error:', error)
-    res.status(500).json({ message: 'Invalid token or server error' })
+
+    // Ketik aman untuk error JWT
+    if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(401).json({ message: 'Invalid token' })
+    }
+
+    return res.status(500).json({ message: 'Server error' })
   }
 }
